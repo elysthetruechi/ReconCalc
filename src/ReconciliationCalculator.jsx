@@ -78,8 +78,11 @@ export default function ReconciliationCalculator() {
     // FTIS KPIs
     const RAR = totalRecordsCount > 0 ? (totalMatchedCount / totalRecordsCount) * 100 : 0;
     const UVR = totalValue > 0 ? (totalUnmatchedValue / totalValue) * 100 : 0;
-    const RVI = totalExceptionsRaised > 0 ? (itemsResolvedWithinSLA / totalExceptionsRaised) * 100 : 0;
     const AMER = totalRecordsLedgerCount > 0 ? (totalRecordsMatchedLedgerCount / totalRecordsLedgerCount) * 100 : 0;
+    
+    // New RVI Calculation
+    const SCR = totalExceptionsRaised > 0 ? (itemsResolvedWithinSLA / totalExceptionsRaised) : 0;
+    const RVI = (SCR * (1 - (UVR / 100)) * (RAR / 100)) * 100;
     
     // FTIS Calculation
     const FTIS = (RAR * 0.4) + (AMER * 0.3) + ((100 - UVR) * 0.2) + (RVI * 0.1);
@@ -111,14 +114,14 @@ export default function ReconciliationCalculator() {
     const totalAnnualBenefit = annualCashRecovery + staffSavings + auditSavings;
     
     // Automation cost
-    const automationCost = 150000000; // ₦150M.
+    const automationCost = 15000000; // ₦15M.
     
     // ROI calculation
     const netBenefit = totalAnnualBenefit - automationCost;
     const ROI = automationCost > 0 ? (netBenefit / automationCost) * 100 : 0;
 
     return {
-      RAR, UVR, RVI, AMER, FTIS,
+      RAR, UVR, RVI, AMER, FTIS, SCR,
       FEI, CoRT,
       workingPeriod,
       totalRecordsCount,
@@ -177,7 +180,7 @@ export default function ReconciliationCalculator() {
     FTIS: { excellent: 95, good: 85, medium: 70 },
     RAR: { excellent: 98, good: 95, medium: 90 },
     AMER: { excellent: 95, good: 85, medium: 75 },
-    RVI: { excellent: 90, good: 80, medium: 70 },
+    RVI: { excellent: 90, good: 75, medium: 60 },
     UVR: { excellent: 1, good: 3, medium: 5, inverted: true }
   };
 
@@ -514,6 +517,9 @@ export default function ReconciliationCalculator() {
               <Clock size={18} />
               SLA Performance Metrics
             </h4>
+            <p className="config-description">
+             SLA Compliance Ratio (SCR)
+            </p>
             <div className="sla-grid">
               <div className="input-group">
                 <label>Items Resolved Within SLA</label>
@@ -736,12 +742,26 @@ export default function ReconciliationCalculator() {
                       <span className="kpi-badge">{getHealthLabel(results.kpis.RVI, kpiThresholds.RVI)}</span>
                     </p>
                     <p className="kpi-label">Reconciliation Velocity Index</p>
-                    <p className="kpi-target">Higher is better</p>
+                    <p className="kpi-target">Target: ≥90%</p>
+                    <div className="kpi-breakdown">
+                      <div className="breakdown-item">
+                        <span>SLA Compliance (SCR):</span>
+                        <span className="breakdown-value">{(results.kpis.SCR * 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="breakdown-item">
+                        <span>Value Quality Factor:</span>
+                        <span className="breakdown-value">{((1 - results.kpis.UVR / 100) * 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="breakdown-item">
+                        <span>Accuracy Factor:</span>
+                        <span className="breakdown-value">{results.kpis.RAR.toFixed(1)}%</span>
+                      </div>
+                    </div>
                     <div className="kpi-detail">
                       {formatNumber(results.kpis.itemsResolvedWithinSLA)} / {formatNumber(results.kpis.totalExceptionsRaised)} within SLA
                     </div>
                     <div className="kpi-formula">
-                      Formula: Items Resolved Within SLA / Total Exceptions Raised × 100
+                      Formula: SCR × (1−UVR) × RAR<br/>
                     </div>
                   </div>
                   <div className="kpi-legend-vertical">
@@ -751,15 +771,15 @@ export default function ReconciliationCalculator() {
                     </div>
                     <div className="legend-item-vertical good">
                       <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">80-89%</span>
+                      <span className="legend-label">75-89%</span>
                     </div>
                     <div className="legend-item-vertical medium">
                       <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">70-79%</span>
+                      <span className="legend-label">60-74%</span>
                     </div>
                     <div className="legend-item-vertical critical">
                       <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">&lt;70%</span>
+                      <span className="legend-label">&lt;60%</span>
                     </div>
                   </div>
                 </div>
@@ -857,7 +877,11 @@ export default function ReconciliationCalculator() {
                     <span className="metric-value">{results.kpis.workingPeriod} days</span>
                   </div>
                   <div className="metric">
-                    <span>SLA Compliance Rate:</span>
+                    <span>SLA Compliance (SCR):</span>
+                    <span className="metric-value">{(results.kpis.SCR * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className="metric">
+                    <span>Velocity Index (RVI):</span>
                     <span className="metric-value">{results.kpis.RVI.toFixed(1)}%</span>
                   </div>
                   <div className="metric">
@@ -934,7 +958,8 @@ export default function ReconciliationCalculator() {
                   <ul className="summary-list">
                     <li>✓ <strong>Audit Integrity:</strong> {results.kpis.RAR.toFixed(1)}% of records verified</li>
                     <li>✓ <strong>Cash Visibility:</strong> {formatCurrency(results.kpis.totalUnmatchedValue)} at risk</li>
-                    <li>✓ <strong>SLA Performance:</strong> {results.kpis.RVI.toFixed(1)}% resolved within SLA</li>
+                    <li>✓ <strong>Resolution Velocity:</strong> {results.kpis.RVI.toFixed(1)}% RVI (considers speed, accuracy & value)</li>
+                    <li>✓ <strong>SLA Compliance:</strong> {(results.kpis.SCR * 100).toFixed(1)}% exceptions resolved on time</li>
                     <li>✓ <strong>Automation Maturity:</strong> {results.kpis.AMER.toFixed(1)}% ledger auto-matched</li>
                     <li>✓ <strong>Data Trust:</strong> FTIS score of {results.kpis.FTIS.toFixed(1)}/100</li>
                     <li>✓ <strong>Reconciliation Scope:</strong> {formatNumber(results.kpis.totalRecordsCount)} combined records analyzed</li>

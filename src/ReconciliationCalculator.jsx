@@ -956,13 +956,13 @@ export default function ReconciliationCalculator() {
                 <div>
                   <h3>Business Questions Answered:</h3>
                   <ul className="summary-list">
-                    <li>✓ <strong>Audit Integrity:</strong> {results.kpis.RAR.toFixed(1)}% of records verified</li>
-                    <li>✓ <strong>Cash Visibility:</strong> {formatCurrency(results.kpis.totalUnmatchedValue)} at risk</li>
-                    <li>✓ <strong>Resolution Velocity:</strong> {results.kpis.RVI.toFixed(1)}% RVI (considers speed, accuracy & value)</li>
-                    <li>✓ <strong>SLA Compliance:</strong> {(results.kpis.SCR * 100).toFixed(1)}% exceptions resolved on time</li>
-                    <li>✓ <strong>Automation Maturity:</strong> {results.kpis.AMER.toFixed(1)}% ledger auto-matched</li>
-                    <li>✓ <strong>Data Trust:</strong> FTIS score of {results.kpis.FTIS.toFixed(1)}/100</li>
-                    <li>✓ <strong>Reconciliation Scope:</strong> {formatNumber(results.kpis.totalRecordsCount)} combined records analyzed</li>
+                    <li> <strong>Audit Integrity:</strong> {results.kpis.RAR.toFixed(1)}% of records verified</li>
+                    <li> <strong>Cash Visibility:</strong> {formatCurrency(results.kpis.totalUnmatchedValue)} at risk</li>
+                    <li> <strong>Resolution Velocity:</strong> {results.kpis.RVI.toFixed(1)}% RVI (considers speed, accuracy & value)</li>
+                    <li> <strong>SLA Compliance:</strong> {(results.kpis.SCR * 100).toFixed(1)}% exceptions resolved on time</li>
+                    <li> <strong>Automation Maturity:</strong> {results.kpis.AMER.toFixed(1)}% ledger auto-matched</li>
+                    <li> <strong>Data Trust:</strong> FTIS score of {results.kpis.FTIS.toFixed(1)}/100</li>
+                    <li> <strong>Reconciliation Scope:</strong> {formatNumber(results.kpis.totalRecordsCount)} combined records analyzed</li>
                   </ul>
                 </div>
                 <div>

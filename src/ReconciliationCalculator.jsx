@@ -10,7 +10,7 @@ export default function ReconciliationCalculator() {
   const [results, setResults] = useState(null);
   const [aggregationLevel, setAggregationLevel] = useState('working-period');
   const [config, setConfig] = useState({
-    // Working period dates
+    // Working period date
     startDate: '',
     endDate: '',
     accountName: '',
@@ -80,7 +80,7 @@ export default function ReconciliationCalculator() {
     const UVR = totalValue > 0 ? (totalUnmatchedValue / totalValue) * 100 : 0;
     const AMER = totalRecordsLedgerCount > 0 ? (totalRecordsMatchedLedgerCount / totalRecordsLedgerCount) * 100 : 0;
     
-    // New RVI Calculation
+    // New RVI Calc
     const SCR = totalExceptionsRaised > 0 ? (itemsResolvedWithinSLA / totalExceptionsRaised) : 0;
     const RVI = (SCR * (1 - (UVR / 100)) * (RAR / 100)) * 100;
     
@@ -94,27 +94,27 @@ export default function ReconciliationCalculator() {
     const FEI = monthlyTurnover > 0 ? (totalUnmatchedValue / monthlyTurnover) * 100 : 0;
     const CoRT = totalRecordsCount > 0 ? reconciliationCost / totalRecordsCount : 0;
     
-    // ROI Framework
-    // Manual baseline: 5-10 FTEs, after automation: 1-2 FTEs (70% time saved)
+    // ROI.
+    // Manual baseline: 5-10 FTEs, after automation: 1-2 FTEs
     const manualStaffCost = 5 * 15000000; // 5 FTEs at ₦6M per year average
     const automatedStaffCost = 1.5 * 15000000; // 1.5 FTEs supervising
     const staffSavings = manualStaffCost - automatedStaffCost;
     
     // Cash recovery: unmatched ratio drops from 1% to 0.1%
-    const baselineUnmatchedRatio = 0.01; // 1%
+    const baselineUnmatchedRatio = 0.01;
     const currentUnmatchedRatio = UVR / 100;
     const unmatchedImprovement = Math.max(0, baselineUnmatchedRatio - currentUnmatchedRatio);
     const monthlyRecovery = monthlyTurnover * unmatchedImprovement;
     const annualCashRecovery = monthlyRecovery * 12;
     
     // Audit efficiency savings
-    const auditSavings = 10000000; // ₦10M annually from reduced audit queries
+    const auditSavings = 10000000; // 10M annually from reduced audit queries
     
     // Total annual benefit
     const totalAnnualBenefit = annualCashRecovery + staffSavings + auditSavings;
     
     // Automation cost
-    const automationCost = 15000000; // ₦15M.
+    const automationCost = 15000000; 
     
     // ROI calculation
     const netBenefit = totalAnnualBenefit - automationCost;
@@ -175,7 +175,7 @@ export default function ReconciliationCalculator() {
     return 'Critical';
   };
 
-  // KPI Thresholds
+  //KPI Thresholds
   const kpiThresholds = {
     FTIS: { excellent: 95, good: 85, medium: 70 },
     RAR: { excellent: 98, good: 95, medium: 90 },

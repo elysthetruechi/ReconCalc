@@ -1,983 +1,411 @@
-import React, { useState } from 'react';
-import { 
-  CheckCircle, XCircle, AlertCircle, TrendingUp, DollarSign, 
-  Clock, Shield, Zap, BarChart3, Target, Calendar, Database, 
-  PieChart, FileText, BookOpen, Percent, Layers, ChevronDown, ChevronUp 
-} from 'lucide-react';
-import './ReconciliationCalculator.css';
+import React, { useState, useMemo } from "react";
+import {
+  CheckCircle2, AlertTriangle, ChevronDown, Upload, FileEdit,
+  Plug, Check
+} from "lucide-react";
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip
+} from "recharts";
 
-export default function ReconciliationCalculator() {
-  const [results, setResults] = useState(null);
-  const [aggregationLevel, setAggregationLevel] = useState('working-period');
-  const [config, setConfig] = useState({
-    // Working period date
-    startDate: '',
-    endDate: '',
-    accountName: '',
-    
-    // Ledger counts
-    totalRecordsLedgerCount: 5000,
-    totalRecordsMatchedLedgerCount: 3000,
-    totalOutstandingLedgerCount: 250,
-    
-    // Ledger values
-    totalLedgerValue: 5000000000,
-    totalLedgerMatchedValue: 4750000000,
-    totalLedgerUnmatchedValue: 250000000,
-    
-    // Statement counts
-    totalStatementCount: 5500,
-    totalRecordsMatchedStatementCount: 3200,
-    totalOutstandingStatementCount: 300,
-    
-    // Statement values
-    totalStatementValue: 5200000000,
-    totalStatementMatchedValue: 4900000000,
-    totalStatementUnmatchedValue: 300000000,
-    
-    // SLA metrics for RVI
-    itemsResolvedWithinSLA: 2800,
-    totalExceptionsRaised: 3000
-  });
+/* DESIGN TOKENS
+   Ledger-paper system: pale green-tinted paper (real columnar-pad
+   colour), ink text, hairline rules, slate-blue "correction ink"
+   accent, and a restrained three-colour signal set used only for
+   status, never decoration. */
+const T = {
+  paper: "#EDF1EA",
+  paperRaised: "#F5F7F3",
+  ink: "#1C2321",
+  inkMuted: "#55645A",
+  line: "#C7D2C2",
+  lineStrong: "#9FB09A",
+  accent: "#2C4A6E",
+  good: "#1F6F4C",
+  medium: "#A9781F",
+  critical: "#9B3B2B",
+};
 
-  const calculateKPIs = () => {
-    const {
-      startDate,
-      endDate,
-      totalRecordsLedgerCount,
-      totalRecordsMatchedLedgerCount,
-      totalOutstandingLedgerCount,
-      totalLedgerValue,
-      totalLedgerMatchedValue,
-      totalLedgerUnmatchedValue,
-      totalStatementCount,
-      totalRecordsMatchedStatementCount,
-      totalOutstandingStatementCount,
-      totalStatementValue,
-      totalStatementMatchedValue,
-      totalStatementUnmatchedValue,
-      itemsResolvedWithinSLA,
-      totalExceptionsRaised
-    } = config;
+const FONT_IMPORT = `
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+`;
 
-    // Calculate working period from dates
-    let workingPeriod = 30;
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      workingPeriod = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    }
+/* A mock data for now shaped exactly like the FastAPI response models
+   (KPISnapshotOut / PeriodOut / ExceptionOut) so wiring this to
+   the real backend later is a fetch() swap, not a rewrite. */
+const ACCOUNTS = [
+  { id: "acc-1", name: "Current Account — NGN" },
+  { id: "acc-2", name: "Settlement Account — USD" },
+];
 
-    // Combined totals
-    const totalRecordsCount = totalRecordsLedgerCount + totalStatementCount;
-    const totalMatchedCount = totalRecordsMatchedLedgerCount + totalRecordsMatchedStatementCount;
-    const totalValue = totalLedgerValue + totalStatementValue;
-    const totalMatchedValue = totalLedgerMatchedValue + totalStatementMatchedValue;
-    const totalUnmatchedValue = totalLedgerUnmatchedValue + totalStatementUnmatchedValue;
-    
-    // FTIS KPIs
-    const RAR = totalRecordsCount > 0 ? (totalMatchedCount / totalRecordsCount) * 100 : 0;
-    const UVR = totalValue > 0 ? (totalUnmatchedValue / totalValue) * 100 : 0;
-    const AMER = totalRecordsLedgerCount > 0 ? (totalRecordsMatchedLedgerCount / totalRecordsLedgerCount) * 100 : 0;
-    
-    // New RVI Calc
-    const SCR = totalExceptionsRaised > 0 ? (itemsResolvedWithinSLA / totalExceptionsRaised) : 0;
-    const RVI = (SCR * (1 - (UVR / 100)) * (RAR / 100)) * 100;
-    
-    // FTIS Calculation
-    const FTIS = (RAR * 0.4) + (AMER * 0.3) + ((100 - UVR) * 0.2) + (RVI * 0.1);
-    
-    // estimated Financial metrics 
-    const avgTransactionValue = totalValue / totalRecordsCount;
-    const reconciliationCost = totalRecordsCount * 1500; 
-    const monthlyTurnover = (totalValue / workingPeriod) * 30;
-    const FEI = monthlyTurnover > 0 ? (totalUnmatchedValue / monthlyTurnover) * 100 : 0;
-    const CoRT = totalRecordsCount > 0 ? reconciliationCost / totalRecordsCount : 0;
-    
-    // ROI.
-    // Manual baseline: 5-10 FTEs, after automation: 1-2 FTEs
-    const manualStaffCost = 5 * 15000000; // 5 FTEs at ₦6M per year average
-    const automatedStaffCost = 1.5 * 15000000; // 1.5 FTEs supervising
-    const staffSavings = manualStaffCost - automatedStaffCost;
-    
-    // Cash recovery: unmatched ratio drops from 1% to 0.1%
-    const baselineUnmatchedRatio = 0.01;
-    const currentUnmatchedRatio = UVR / 100;
-    const unmatchedImprovement = Math.max(0, baselineUnmatchedRatio - currentUnmatchedRatio);
-    const monthlyRecovery = monthlyTurnover * unmatchedImprovement;
-    const annualCashRecovery = monthlyRecovery * 12;
-    
-    // Audit efficiency savings
-    const auditSavings = 10000000; // 10M annually from reduced audit queries
-    
-    // Total annual benefit
-    const totalAnnualBenefit = annualCashRecovery + staffSavings + auditSavings;
-    
-    // Automation cost
-    const automationCost = 15000000; 
-    
-    // ROI calculation
-    const netBenefit = totalAnnualBenefit - automationCost;
-    const ROI = automationCost > 0 ? (netBenefit / automationCost) * 100 : 0;
+const PERIODS = [
+  { id: "p-jun", label: "Jun 2026", start_date: "2026-06-01" },
+  { id: "p-jul", label: "Jul 2026", start_date: "2026-07-01" },
+];
 
-    return {
-      RAR, UVR, RVI, AMER, FTIS, SCR,
-      FEI, CoRT,
-      workingPeriod,
-      totalRecordsCount,
-      totalMatchedCount,
-      totalRecordsLedgerCount,
-      totalRecordsMatchedLedgerCount,
-      totalOutstandingLedgerCount,
-      totalStatementCount,
-      totalRecordsMatchedStatementCount,
-      totalOutstandingStatementCount,
-      totalValue,
-      totalMatchedValue,
-      totalUnmatchedValue,
-      totalLedgerValue,
-      totalLedgerMatchedValue,
-      totalLedgerUnmatchedValue,
-      totalStatementValue,
-      totalStatementMatchedValue,
-      totalStatementUnmatchedValue,
-      itemsResolvedWithinSLA,
-      totalExceptionsRaised,
-      avgTransactionValue,
-      reconciliationCost,
-      monthlyTurnover,
-      annualCashRecovery,
-      staffSavings,
-      auditSavings,
-      totalAnnualBenefit,
-      automationCost,
-      netBenefit,
-      ROI
-    };
-  };
+const KPI_HISTORY = [
+  { period: "Feb", rar: 92.1, uvr: 4.2, ftis: 81.4 },
+  { period: "Mar", rar: 93.8, uvr: 3.6, ftis: 84.0 },
+  { period: "Apr", rar: 95.0, uvr: 2.9, ftis: 87.2 },
+  { period: "May", rar: 96.4, uvr: 2.1, ftis: 89.8 },
+  { period: "Jun", rar: 97.5, uvr: 1.4, ftis: 92.6 },
+  { period: "Jul", rar: 98.1, uvr: 0.9, ftis: 94.3 },
+];
 
-  const generateReport = () => {
-    const kpis = calculateKPIs();
-    setResults({ kpis });
-  };
+const CURRENT_KPI = {
+  total_ledger_count: 5000,
+  total_statement_count: 5500,
+  matched_count: 6200,
+  total_ledger_value: 5_000_000_000,
+  total_statement_value: 5_200_000_000,
+  unmatched_value: 92_000_000,
+  rar: 98.1,
+  uvr: 0.9,
+  amer: 96.4,
+  rvi: 88.7,
+  ftis: 94.3,
+};
 
-  const getHealthClass = (score, thresholds) => {
-    if (score >= thresholds.excellent) return 'health-excellent';
-    if (score >= thresholds.good) return 'health-good';
-    if (score >= thresholds.medium) return 'health-medium';
-    return 'health-critical';
-  };
+const EXCEPTIONS = [
+  { id: "e1", source: "ledger", category: "missing_counterpart", variance: null, created_at: "2026-07-28", sla_deadline: "2026-07-31", resolved_at: null },
+  { id: "e2", source: "combined", category: "amount_mismatch", variance: -1250.0, created_at: "2026-07-27", sla_deadline: "2026-07-30", resolved_at: null },
+  { id: "e3", source: "statement", category: "missing_counterpart", variance: null, created_at: "2026-07-25", sla_deadline: "2026-07-28", resolved_at: "2026-07-27" },
+  { id: "e4", source: "combined", category: "amount_mismatch", variance: 340.5, created_at: "2026-07-20", sla_deadline: "2026-07-23", resolved_at: "2026-07-26" },
+  { id: "e5", source: "ledger", category: "missing_counterpart", variance: null, created_at: "2026-07-18", sla_deadline: "2026-07-21", resolved_at: "2026-07-19" },
+];
 
-  const getHealthLabel = (score, thresholds) => {
-    if (score >= thresholds.excellent) return 'Excellent';
-    if (score >= thresholds.good) return 'Good';
-    if (score >= thresholds.medium) return 'Medium';
-    return 'Critical';
-  };
+/*FORMATTERS */
+const fmtNGN = (v) =>
+  new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(v);
+const fmtNum = (v) => new Intl.NumberFormat("en-NG").format(v);
+const fmtPct = (v) => `${v.toFixed(1)}%`;
+const fmtDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 
-  //KPI Thresholds
-  const kpiThresholds = {
-    FTIS: { excellent: 95, good: 85, medium: 70 },
-    RAR: { excellent: 98, good: 95, medium: 90 },
-    AMER: { excellent: 95, good: 85, medium: 75 },
-    RVI: { excellent: 90, good: 75, medium: 60 },
-    UVR: { excellent: 1, good: 3, medium: 5, inverted: true }
-  };
+function signalFor(value, thresholds, inverted = false) {
+  const { good, medium } = thresholds;
+  if (inverted) {
+    if (value <= good) return T.good;
+    if (value <= medium) return T.medium;
+    return T.critical;
+  }
+  if (value >= good) return T.good;
+  if (value >= medium) return T.medium;
+  return T.critical;
+}
 
-  const getHealthClassForUVR = (score) => {
-    if (score <= kpiThresholds.UVR.excellent) return 'health-excellent';
-    if (score <= kpiThresholds.UVR.good) return 'health-good';
-    if (score <= kpiThresholds.UVR.medium) return 'health-medium';
-    return 'health-critical';
-  };
+const THRESHOLDS = {
+  rar: { good: 98, medium: 90 },
+  uvr: { good: 1, medium: 3, inverted: true },
+  amer: { good: 95, medium: 80 },
+  rvi: { good: 85, medium: 65 },
+};
 
-  const getHealthLabelForUVR = (score) => {
-    if (score <= kpiThresholds.UVR.excellent) return 'Excellent';
-    if (score <= kpiThresholds.UVR.good) return 'Good';
-    if (score <= kpiThresholds.UVR.medium) return 'Medium';
-    return 'Critical';
-  };
+/*
+   SMALL PIECES */
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value);
-  };
+// The signature element: classic accounting double-underline
+// under a grand total figure.
+function DoubleRule({ color = T.ink }) {
+  return (
+    <div
+      style={{
+        height: 4,
+        marginTop: 6,
+        borderBottom: `2px solid ${color}`,
+        boxShadow: `0 4px 0 -1px ${color}`,
+      }}
+    />
+  );
+}
 
-  const formatNumber = (value) => {
-    return new Intl.NumberFormat('en-NG').format(value);
-  };
+// Hand-tick check mark for matched/resolved rows, a small diagonal
+function TickMark({ color = T.good, size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+      <path d="M2 8.5 L6.5 13 L14 3" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
-  const formatInputNumber = (value) => {
-    if (!value && value !== 0) return '';
-    return new Intl.NumberFormat('en-NG').format(value);
-  };
+function Dropdown({ value, options, onChange, labelKey = "name" }) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          fontFamily: "'Inter', sans-serif",
+          color: T.ink,
+          background: "transparent",
+          border: `1px solid ${T.line}`,
+        }}
+        className="appearance-none pl-3 pr-8 py-1.5 text-sm rounded-sm cursor-pointer focus:outline-none focus:ring-1"
+      >
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o[labelKey]}</option>
+        ))}
+      </select>
+      <ChevronDown size={14} style={{ color: T.inkMuted }} className="absolute right-2 top-2 pointer-events-none" />
+    </div>
+  );
+}
 
-  const parseInputNumber = (value) => {
-    if (!value) return 0;
-    return parseFloat(value.toString().replace(/,/g, '')) || 0;
-  };
+function KpiBlock({ label, value, target, formula, color }) {
+  return (
+    <div className="flex-1 min-w-[150px]">
+      <div className="flex items-center gap-1.5 mb-1">
+        <span
+          style={{ background: color }}
+          className="inline-block w-1.5 h-1.5 rounded-full"
+        />
+        <span style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }} className="text-[11px] uppercase tracking-wider">
+          {label}
+        </span>
+      </div>
+      <div
+        style={{ fontFamily: "'IBM Plex Mono', monospace", color: T.ink, fontVariantNumeric: "tabular-nums" }}
+        className="text-2xl font-medium"
+      >
+        {value}
+      </div>
+      <DoubleRule color={T.line} />
+      <div style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }} className="text-[11px] mt-1.5">
+        {target}
+      </div>
+    </div>
+  );
+}
+
+const SOURCE_LABEL = { ledger: "Ledger", statement: "Statement", combined: "Combined" };
+const CATEGORY_LABEL = { missing_counterpart: "No counterpart", amount_mismatch: "Amount mismatch", unresolved: "Unresolved" };
+
+function ExceptionRow({ exc, onResolve }) {
+  const isResolved = !!exc.resolved_at;
+  const withinSla = isResolved && new Date(exc.resolved_at) <= new Date(exc.sla_deadline);
+  const overdue = !isResolved && new Date() > new Date(exc.sla_deadline);
+
+  let statusColor = T.medium;
+  let statusLabel = "Open";
+  if (isResolved) {
+    statusColor = withinSla ? T.good : T.medium;
+    statusLabel = withinSla ? "Resolved · within SLA" : "Resolved · late";
+  } else if (overdue) {
+    statusColor = T.critical;
+    statusLabel = "Overdue";
+  }
 
   return (
-    <div className="recon-app">
-      <div className="recon-container">
-        {/* Header */}
-        <div className="header">
-          <div className="header-title">
-            <Shield className="header-icon" size={40} />
-            <h1>Reconciliation Intelligence Dashboard</h1>
-          </div>
-          <p className="header-subtitle">
-            Real-time KPI monitoring and Reconciliation Health check
-          </p>
+    <tr style={{ borderBottom: `1px solid ${T.line}` }}>
+      <td className="py-2.5 pr-4 text-sm" style={{ fontFamily: "'Inter', sans-serif", color: T.ink }}>
+        {SOURCE_LABEL[exc.source]}
+      </td>
+      <td className="py-2.5 pr-4 text-sm" style={{ fontFamily: "'Inter', sans-serif", color: T.ink }}>
+        {CATEGORY_LABEL[exc.category]}
+      </td>
+      <td
+        className="py-2.5 pr-4 text-sm text-right"
+        style={{ fontFamily: "'IBM Plex Mono', monospace", color: exc.variance ? T.critical : T.inkMuted, fontVariantNumeric: "tabular-nums" }}
+      >
+        {exc.variance ? fmtNGN(exc.variance) : "—"}
+      </td>
+      <td className="py-2.5 pr-4 text-sm" style={{ fontFamily: "'IBM Plex Mono', monospace", color: T.inkMuted }}>
+        {fmtDate(exc.created_at)}
+      </td>
+      <td className="py-2.5 pr-4 text-sm" style={{ fontFamily: "'IBM Plex Mono', monospace", color: T.inkMuted }}>
+        {fmtDate(exc.sla_deadline)}
+      </td>
+      <td className="py-2.5 pr-4">
+        <div className="flex items-center gap-1.5">
+          {isResolved && <TickMark color={statusColor} />}
+          <span style={{ fontFamily: "'Inter', sans-serif", color: statusColor }} className="text-xs font-medium">
+            {statusLabel}
+          </span>
         </div>
-
-        <div className="card config-panel">
-          <h3 className="section-title">
-            <Database size={20} />
-            Business Parameters
-          </h3>
-          <p className="config-description">
-            Input Metrics to calculate real-time KPIs.
-          </p>
-          
-          {/* Aggregation Level Selection */}
-          <div className="period-section">
-            <h4 className="subsection-title">
-              <Layers size={18} />
-              Aggregation Level
-            </h4>
-            <div className="aggregation-selector">
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  value="working-period"
-                  checked={aggregationLevel === 'working-period'}
-                  onChange={(e) => setAggregationLevel(e.target.value)}
-                />
-                <span>By Working Period</span>
-              </label>
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  value="account"
-                  checked={aggregationLevel === 'account'}
-                  onChange={(e) => setAggregationLevel(e.target.value)}
-                />
-                <span>By Account Level</span>
-              </label>
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  value="enterprise"
-                  checked={aggregationLevel === 'enterprise'}
-                  onChange={(e) => setAggregationLevel(e.target.value)}
-                />
-                <span>By Enterprise Level</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Working Period */}
-          <div className="period-section">
-            <h4 className="subsection-title">
-              <Calendar size={18} />
-              {aggregationLevel === 'working-period' && 'Working Period'}
-              {aggregationLevel === 'account' && 'Account Details'}
-              {aggregationLevel === 'enterprise' && 'Enterprise Overview'}
-            </h4>
-            {aggregationLevel === 'working-period' && (
-              <div className="date-grid">
-                <div className="input-group">
-                  <label>Start Date</label>
-                  <input
-                    type="date"
-                    value={config.startDate}
-                    onChange={(e) => setConfig({...config, startDate: e.target.value})}
-                  />
-                </div>
-                <div className="input-group">
-                  <label>End Date</label>
-                  <input
-                    type="date"
-                    value={config.endDate}
-                    onChange={(e) => setConfig({...config, endDate: e.target.value})}
-                  />
-                </div>
-              </div>
-            )}
-            {aggregationLevel === 'account' && (
-              <>
-                <div className="input-group">
-                  <label>Account Name</label>
-                  <input
-                    type="text"
-                    value={config.accountName}
-                    onChange={(e) => setConfig({...config, accountName: e.target.value})}
-                    placeholder="e.g., Current Account - USD"
-                  />
-                </div>
-                <div className="date-grid" style={{marginTop: '1rem'}}>
-                  <div className="input-group">
-                    <label>Start Date</label>
-                    <input
-                      type="date"
-                      value={config.startDate}
-                      onChange={(e) => setConfig({...config, startDate: e.target.value})}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>End Date</label>
-                    <input
-                      type="date"
-                      value={config.endDate}
-                      onChange={(e) => setConfig({...config, endDate: e.target.value})}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-            {aggregationLevel === 'enterprise' && (
-              <>
-                <p className="aggregation-description">
-                  Enterprise-level view aggregates all reconciliation data across all accounts and periods.
-                </p>
-                <div className="date-grid" style={{marginTop: '1rem'}}>
-                  <div className="input-group">
-                    <label>Start Date</label>
-                    <input
-                      type="date"
-                      value={config.startDate}
-                      onChange={(e) => setConfig({...config, startDate: e.target.value})}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>End Date</label>
-                    <input
-                      type="date"
-                      value={config.endDate}
-                      onChange={(e) => setConfig({...config, endDate: e.target.value})}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Ledger & Statement Data */}
-          <div className="data-section">
-            <h4 className="subsection-title">
-              <FileText size={18} />
-              Reconciliation Data
-            </h4>
-            
-            <div className="data-box">
-              {/* Counts Section */}
-              <div className="data-column">
-                <h5 className="column-title">Counts</h5>
-                
-                <div className="data-group">
-                  <p className="group-label">Ledger</p>
-                  <div className="input-group">
-                    <label>Total Records (Ledger)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalRecordsLedgerCount)}
-                      onChange={(e) => setConfig({...config, totalRecordsLedgerCount: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 5,000"
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Matched Records (Ledger)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalRecordsMatchedLedgerCount)}
-                      onChange={(e) => setConfig({...config, totalRecordsMatchedLedgerCount: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 3,000"
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Outstanding Records (Ledger)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalOutstandingLedgerCount)}
-                      onChange={(e) => setConfig({...config, totalOutstandingLedgerCount: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 250"
-                    />
-                  </div>
-                </div>
-
-                <div className="data-group">
-                  <p className="group-label">Statement</p>
-                  <div className="input-group">
-                    <label>Total Records (Statement)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalStatementCount)}
-                      onChange={(e) => setConfig({...config, totalStatementCount: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 5,500"
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Matched Records (Statement)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalRecordsMatchedStatementCount)}
-                      onChange={(e) => setConfig({...config, totalRecordsMatchedStatementCount: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 3,200"
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Outstanding Records (Statement)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalOutstandingStatementCount)}
-                      onChange={(e) => setConfig({...config, totalOutstandingStatementCount: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 300"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Values Section */}
-              <div className="data-column">
-                <h5 className="column-title">Values (₦)</h5>
-                
-                <div className="data-group">
-                  <p className="group-label">Ledger</p>
-                  <div className="input-group">
-                    <label>Total Value (Ledger)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalLedgerValue)}
-                      onChange={(e) => setConfig({...config, totalLedgerValue: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 5,000,000,000"
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Matched Value (Ledger)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalLedgerMatchedValue)}
-                      onChange={(e) => setConfig({...config, totalLedgerMatchedValue: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 4,750,000,000"
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Unmatched Value (Ledger)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalLedgerUnmatchedValue)}
-                      onChange={(e) => setConfig({...config, totalLedgerUnmatchedValue: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 250,000,000"
-                    />
-                  </div>
-                </div>
-
-                <div className="data-group">
-                  <p className="group-label">Statement</p>
-                  <div className="input-group">
-                    <label>Total Value (Statement)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalStatementValue)}
-                      onChange={(e) => setConfig({...config, totalStatementValue: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 5,200,000,000"
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Matched Value (Statement)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalStatementMatchedValue)}
-                      onChange={(e) => setConfig({...config, totalStatementMatchedValue: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 4,900,000,000"
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Unmatched Value (Statement)</label>
-                    <input
-                      type="text"
-                      value={formatInputNumber(config.totalStatementUnmatchedValue)}
-                      onChange={(e) => setConfig({...config, totalStatementUnmatchedValue: parseInputNumber(e.target.value)})}
-                      placeholder="e.g., 300,000,000"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SLA Metrics for RVI */}
-          <div className="sla-section">
-            <h4 className="subsection-title">
-              <Clock size={18} />
-              SLA Performance Metrics
-            </h4>
-            <p className="config-description">
-             SLA Compliance Ratio (SCR)
-            </p>
-            <div className="sla-grid">
-              <div className="input-group">
-                <label>Items Resolved Within SLA</label>
-                <input
-                  type="text"
-                  value={formatInputNumber(config.itemsResolvedWithinSLA)}
-                  onChange={(e) => setConfig({...config, itemsResolvedWithinSLA: parseInputNumber(e.target.value)})}
-                  placeholder="e.g., 2,800"
-                />
-              </div>
-              <div className="input-group">
-                <label>Total Exceptions Raised</label>
-                <input
-                  type="text"
-                  value={formatInputNumber(config.totalExceptionsRaised)}
-                  onChange={(e) => setConfig({...config, totalExceptionsRaised: parseInputNumber(e.target.value)})}
-                  placeholder="e.g., 3,000"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="config-summary">
-            <div className="summary-item">
-              <span className="summary-label">Aggregation Level:</span>
-              <span className="summary-value">
-                {aggregationLevel === 'working-period' && 'By Working Period'}
-                {aggregationLevel === 'account' && 'By Account Level'}
-                {aggregationLevel === 'enterprise' && 'By Enterprise Level'}
-              </span>
-            </div>
-            {aggregationLevel === 'working-period' && (
-              <div className="summary-item">
-                <span className="summary-label">Working Period:</span>
-                <span className="summary-value">
-                  {config.startDate && config.endDate 
-                    ? `${Math.ceil((new Date(config.endDate) - new Date(config.startDate)) / (1000 * 60 * 60 * 24))} days`
-                    : '30 days (default)'}
-                </span>
-              </div>
-            )}
-            {aggregationLevel === 'account' && config.accountName && (
-              <div className="summary-item">
-                <span className="summary-label">Account:</span>
-                <span className="summary-value">{config.accountName}</span>
-              </div>
-            )}
-            <div className="summary-item">
-              <span className="summary-label">Total Combined Records:</span>
-              <span className="summary-value">
-                {formatNumber(config.totalRecordsLedgerCount + config.totalStatementCount)}
-              </span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Total Combined Value:</span>
-              <span className="summary-value">
-                {formatCurrency(config.totalLedgerValue + config.totalStatementValue)}
-              </span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Overall Match Rate:</span>
-              <span className="summary-value">
-                {(config.totalRecordsLedgerCount + config.totalStatementCount) > 0 
-                  ? (((config.totalRecordsMatchedLedgerCount + config.totalRecordsMatchedStatementCount) / (config.totalRecordsLedgerCount + config.totalStatementCount)) * 100).toFixed(1) + '%'
-                  : '0%'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="button-container">
+      </td>
+      <td className="py-2.5 text-right">
+        {!isResolved && (
           <button
-            onClick={generateReport}
-            className="btn-primary"
+            onClick={() => onResolve(exc.id)}
+            style={{ fontFamily: "'Inter', sans-serif", color: T.accent, border: `1px solid ${T.accent}` }}
+            className="text-xs px-2.5 py-1 rounded-sm hover:opacity-75 transition-opacity"
           >
-            <BarChart3 size={24} />
-            Calculate Reconciliation KPIs
+            Mark resolved
           </button>
-        </div>
+        )}
+      </td>
+    </tr>
+  );
+}
 
-        {results && results.kpis && (
-          <div className="results-container">
-           {/* FTIS Score */}
-            <div className={`ftis-card ${getHealthClass(results.kpis.FTIS, kpiThresholds.FTIS)}`}>
-              <div className="ftis-content">
-                <div className="ftis-header">
-                  <Shield size={32} />
-                  <h2>Financial Truth Integrity Score (FTIS)</h2>
-                </div>
-                <div className="ftis-content-row">
-                  <div className="ftis-main">
-                    <div className="ftis-score">
-                      {results.kpis.FTIS.toFixed(1)}
-                      <span className="health-badge">{getHealthLabel(results.kpis.FTIS, kpiThresholds.FTIS)}</span>
-                    </div>
-                    <p className="ftis-status">
-                      {results.kpis.FTIS >= 95 ? '✓ Excellent - Data Truth Assurance Achieved' :
-                       results.kpis.FTIS >= 85 ? '⚠ Good - Minor Improvements Needed' :
-                       results.kpis.FTIS >= 70 ? '⚠ Medium - Improvements Required' :
-                       '✗ Critical - Immediate Action Required'}
-                    </p>
-                    <p className="ftis-formula">
-                      Composite Score: RAR (40%) + AMER (30%) + (100-UVR) (20%) + RVI (10%)
-                    </p>
-                  </div>
-                  <div className="kpi-legend-vertical">
-                    <div className="legend-item-vertical excellent">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">≥95%</span>
-                    </div>
-                    <div className="legend-item-vertical good">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">85-94%</span>
-                    </div>
-                    <div className="legend-item-vertical medium">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">70-84%</span>
-                    </div>
-                    <div className="legend-item-vertical critical">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">&lt;70%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+/*MAIN Page */
+export default function ReconciliationDashboard() {
+  const [account, setAccount] = useState(ACCOUNTS[0].id);
+  const [period, setPeriod] = useState(PERIODS[1].id);
+  const [inputMethod, setInputMethod] = useState("upload"); // 'manual' | 'upload' | 'api'
+  const [exceptions, setExceptions] = useState(EXCEPTIONS);
+
+  const handleResolve = (id) => {
+    // In production this calls PATCH /exceptions/{id}/resolve and
+    // replaces the KPI snapshot with the server's recomputed RVI/FTIS.
+    setExceptions((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, resolved_at: new Date().toISOString() } : e))
+    );
+  };
+
+  const openCount = useMemo(() => exceptions.filter((e) => !e.resolved_at).length, [exceptions]);
+
+  const inputMethodMeta = {
+    manual: { label: "Manual entry", icon: FileEdit },
+    upload: { label: "File upload", icon: Upload },
+    api: { label: "API connected", icon: Plug },
+  }[inputMethod];
+
+  return (
+    <div style={{ background: T.paper, minHeight: "100%", fontFamily: "'Inter', sans-serif" }} className="w-full">
+      <style>{FONT_IMPORT}</style>
+
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Masthead*/}
+        <div className="flex items-end justify-between mb-6 pb-4" style={{ borderBottom: `1px solid ${T.lineStrong}` }}>
+          <div>
+            <div style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }} className="text-[11px] uppercase tracking-[0.15em] mb-1">
+              Reconciliation Ledger
             </div>
-
-            <div className="kpi-grid">
-              <div className={`kpi-card ${getHealthClass(results.kpis.RAR, kpiThresholds.RAR)}`}>
-                <div className="kpi-header">
-                  <h3>RAR</h3>
-                  <CheckCircle size={20} />
-                </div>
-                <div className="kpi-content-row">
-                  <div className="kpi-main">
-                    <p className="kpi-value">
-                      {results.kpis.RAR.toFixed(2)}%
-                      <span className="kpi-badge">{getHealthLabel(results.kpis.RAR, kpiThresholds.RAR)}</span>
-                    </p>
-                    <p className="kpi-label">Reconciliation Accuracy Ratio</p>
-                    <p className="kpi-target">Target: &gt;98%</p>
-                    <div className="kpi-detail">
-                      {formatNumber(results.kpis.totalMatchedCount)} / {formatNumber(results.kpis.totalRecordsCount)} matched
-                    </div>
-                    <div className="kpi-formula">
-                      Formula: (Ledger + Statement Matched) / (Ledger + Statement Total) × 100
-                    </div>
-                  </div>
-                  <div className="kpi-legend-vertical">
-                    <div className="legend-item-vertical excellent">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">≥98%</span>
-                    </div>
-                    <div className="legend-item-vertical good">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">95-97%</span>
-                    </div>
-                    <div className="legend-item-vertical medium">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">90-94%</span>
-                    </div>
-                    <div className="legend-item-vertical critical">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">&lt;90%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className={`kpi-card ${getHealthClassForUVR(results.kpis.UVR)}`}>
-                <div className="kpi-header">
-                  <h3>UVR</h3>
-                  <AlertCircle size={20} />
-                </div>
-                <div className="kpi-content-row">
-                  <div className="kpi-main">
-                    <p className="kpi-value">
-                      {results.kpis.UVR.toFixed(2)}%
-                      <span className="kpi-badge">{getHealthLabelForUVR(results.kpis.UVR)}</span>
-                    </p>
-                    <p className="kpi-label">Unmatched Value Ratio</p>
-                    <p className="kpi-target">Target: &lt;1%</p>
-                    <div className="kpi-detail">
-                      {formatCurrency(results.kpis.totalUnmatchedValue)} at risk
-                    </div>
-                    <div className="kpi-formula">
-                      Formula: Total Unmatched Value / Total Value × 100
-                    </div>
-                  </div>
-                  <div className="kpi-legend-vertical">
-                    <div className="legend-item-vertical excellent">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">≤1%</span>
-                    </div>
-                    <div className="legend-item-vertical good">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">1-3%</span>
-                    </div>
-                    <div className="legend-item-vertical medium">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">3-5%</span>
-                    </div>
-                    <div className="legend-item-vertical critical">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">&gt;5%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className={`kpi-card ${getHealthClass(results.kpis.RVI, kpiThresholds.RVI)}`}>
-                <div className="kpi-header">
-                  <h3>RVI</h3>
-                  <Zap size={20} />
-                </div>
-                <div className="kpi-content-row">
-                  <div className="kpi-main">
-                    <p className="kpi-value">
-                      {results.kpis.RVI.toFixed(2)}%
-                      <span className="kpi-badge">{getHealthLabel(results.kpis.RVI, kpiThresholds.RVI)}</span>
-                    </p>
-                    <p className="kpi-label">Reconciliation Velocity Index</p>
-                    <p className="kpi-target">Target: ≥90%</p>
-                    <div className="kpi-breakdown">
-                      <div className="breakdown-item">
-                        <span>SLA Compliance (SCR):</span>
-                        <span className="breakdown-value">{(results.kpis.SCR * 100).toFixed(1)}%</span>
-                      </div>
-                      <div className="breakdown-item">
-                        <span>Value Quality Factor:</span>
-                        <span className="breakdown-value">{((1 - results.kpis.UVR / 100) * 100).toFixed(1)}%</span>
-                      </div>
-                      <div className="breakdown-item">
-                        <span>Accuracy Factor:</span>
-                        <span className="breakdown-value">{results.kpis.RAR.toFixed(1)}%</span>
-                      </div>
-                    </div>
-                    <div className="kpi-detail">
-                      {formatNumber(results.kpis.itemsResolvedWithinSLA)} / {formatNumber(results.kpis.totalExceptionsRaised)} within SLA
-                    </div>
-                    <div className="kpi-formula">
-                      Formula: SCR × (1−UVR) × RAR<br/>
-                    </div>
-                  </div>
-                  <div className="kpi-legend-vertical">
-                    <div className="legend-item-vertical excellent">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">≥90%</span>
-                    </div>
-                    <div className="legend-item-vertical good">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">75-89%</span>
-                    </div>
-                    <div className="legend-item-vertical medium">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">60-74%</span>
-                    </div>
-                    <div className="legend-item-vertical critical">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">&lt;60%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className={`kpi-card ${getHealthClass(results.kpis.AMER, kpiThresholds.AMER)}`}>
-                <div className="kpi-header">
-                  <h3>AMER</h3>
-                  <TrendingUp size={20} />
-                </div>
-                <div className="kpi-content-row">
-                  <div className="kpi-main">
-                    <p className="kpi-value">
-                      {results.kpis.AMER.toFixed(2)}%
-                      <span className="kpi-badge">{getHealthLabel(results.kpis.AMER, kpiThresholds.AMER)}</span>
-                    </p>
-                    <p className="kpi-label">Automated Match Efficiency Rate</p>
-                    <p className="kpi-target">Automation maturity</p>
-                    <div className="kpi-detail">
-                      {formatNumber(results.kpis.totalOutstandingLedgerCount)} ledger outstanding
-                    </div>
-                    <div className="kpi-formula">
-                      Formula: Ledger Matched / Total Ledger Records × 100
-                    </div>
-                  </div>
-                  <div className="kpi-legend-vertical">
-                    <div className="legend-item-vertical excellent">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">≥95%</span>
-                    </div>
-                    <div className="legend-item-vertical good">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">85-94%</span>
-                    </div>
-                    <div className="legend-item-vertical medium">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">75-84%</span>
-                    </div>
-                    <div className="legend-item-vertical critical">
-                      <span className="legend-dot-vertical"></span>
-                      <span className="legend-label">&lt;75%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/*Summary*/}
-            <div className="card data-summary">
-              <h3 className="section-title">
-                <PieChart size={20} />
-                Reconciliation Data Summary
-              </h3>
-              <div className="summary-grid">
-                <div className="summary-card">
-                  <h4>Volume Metrics</h4>
-                  <div className="metric">
-                    <span>Total Combined Records:</span>
-                    <span className="metric-value">{formatNumber(results.kpis.totalRecordsCount)}</span>
-                  </div>
-                  <div className="metric">
-                    <span>Total Matched Records:</span>
-                    <span className="metric-value success">{formatNumber(results.kpis.totalMatchedCount)}</span>
-                  </div>
-                  <div className="metric">
-                    <span>Ledger Records:</span>
-                    <span className="metric-value">{formatNumber(results.kpis.totalRecordsLedgerCount)}</span>
-                  </div>
-                  <div className="metric">
-                    <span>Statement Records:</span>
-                    <span className="metric-value">{formatNumber(results.kpis.totalStatementCount)}</span>
-                  </div>
-                </div>
-                
-                <div className="summary-card">
-                  <h4>Value Metrics</h4>
-                  <div className="metric">
-                    <span>Total Combined Value:</span>
-                    <span className="metric-value">{formatCurrency(results.kpis.totalValue)}</span>
-                  </div>
-                  <div className="metric">
-                    <span>Total Matched Value:</span>
-                    <span className="metric-value success">{formatCurrency(results.kpis.totalMatchedValue)}</span>
-                  </div>
-                  <div className="metric">
-                    <span>Total Unmatched Value:</span>
-                    <span className="metric-value danger">{formatCurrency(results.kpis.totalUnmatchedValue)}</span>
-                  </div>
-                </div>
-                
-                <div className="summary-card">
-                  <h4>Performance Metrics</h4>
-                  <div className="metric">
-                    <span>Working Period:</span>
-                    <span className="metric-value">{results.kpis.workingPeriod} days</span>
-                  </div>
-                  <div className="metric">
-                    <span>SLA Compliance (SCR):</span>
-                    <span className="metric-value">{(results.kpis.SCR * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="metric">
-                    <span>Velocity Index (RVI):</span>
-                    <span className="metric-value">{results.kpis.RVI.toFixed(1)}%</span>
-                  </div>
-                  <div className="metric">
-                    <span>Overall Match Rate:</span>
-                    <span className="metric-value">{results.kpis.RAR.toFixed(1)}%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ROI Framework */}
-            <div className="roi-card">
-              <h2 className="roi-title">
-                <TrendingUp size={28} />
-                ROI Framework: Automation Business Case
-              </h2>
-              
-              <div className="roi-grid">
-                <div className="roi-section">
-                  <h3>Annual Benefits</h3>
-                  <div className="roi-items">
-                    <div className="roi-item">
-                      <span>Cash Recovery (Unmatched Improvement)</span>
-                      <span className="roi-amount">{formatCurrency(results.kpis.annualCashRecovery)}</span>
-                    </div>
-                    <div className="roi-item">
-                      <span>Staff Cost Savings (70% reduction)</span>
-                      <span className="roi-amount">{formatCurrency(results.kpis.staffSavings)}</span>
-                    </div>
-                    <div className="roi-item">
-                      <span>Audit Efficiency Savings</span>
-                      <span className="roi-amount">{formatCurrency(results.kpis.auditSavings)}</span>
-                    </div>
-                    <div className="roi-item roi-total">
-                      <span>Total Annual Benefit</span>
-                      <span className="roi-amount">{formatCurrency(results.kpis.totalAnnualBenefit)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="roi-section">
-                  <h3>Investment & Return</h3>
-                  <div className="roi-items">
-                    <div className="roi-item">
-                      <span>Automation Cost (Est.)</span>
-                      <span>{formatCurrency(results.kpis.automationCost)}</span>
-                    </div>
-                    <div className="roi-item">
-                      <span>Net Annual Benefit</span>
-                      <span className="roi-amount">{formatCurrency(results.kpis.netBenefit)}</span>
-                    </div>
-                    <div className="roi-item roi-total">
-                      <span>ROI</span>
-                      <span className="roi-percentage">{results.kpis.ROI.toFixed(0)}%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="roi-summary">
-                <p className="roi-summary-title">Executive Summary:</p>
-                <p className="roi-summary-text">
-                  For every ₦1 invested in reconciliation automation, you recover <strong>₦{(results.kpis.ROI / 100 + 1).toFixed(1)}</strong> in financial assurance, speed, and risk prevention. Based on industry benchmarks: 70% staff time savings (from 5 FTEs to 1.5 FTEs), improved unmatched ratio from 1% to current level, and reduced audit queries.
-                </p>
-              </div>
-            </div>
-
-            {/* Executive Summary */}
-            <div className="card executive-summary">
-              <h2>Executive Impact Summary</h2>
-              <div className="summary-grid">
-                <div>
-                  <h3>Business Questions Answered:</h3>
-                  <ul className="summary-list">
-                    <li> <strong>Audit Integrity:</strong> {results.kpis.RAR.toFixed(1)}% of records verified</li>
-                    <li> <strong>Cash Visibility:</strong> {formatCurrency(results.kpis.totalUnmatchedValue)} at risk</li>
-                    <li> <strong>Resolution Velocity:</strong> {results.kpis.RVI.toFixed(1)}% RVI (considers speed, accuracy & value)</li>
-                    <li> <strong>SLA Compliance:</strong> {(results.kpis.SCR * 100).toFixed(1)}% exceptions resolved on time</li>
-                    <li> <strong>Automation Maturity:</strong> {results.kpis.AMER.toFixed(1)}% ledger auto-matched</li>
-                    <li> <strong>Data Trust:</strong> FTIS score of {results.kpis.FTIS.toFixed(1)}/100</li>
-                    <li> <strong>Reconciliation Scope:</strong> {formatNumber(results.kpis.totalRecordsCount)} combined records analyzed</li>
-                  </ul>
-                </div>
-                <div>
-                  <h3>Key Takeaway:</h3>
-                  <div className="takeaway-box">
-                    <p>
-                      What OEE is to manufacturing, these Reconciliation KPIs are to financial health.
-                      Reconciliation is now visible, measurable, and strategic - not just bookkeeping, but <strong>enterprise assurance</strong>.
-                    </p>
-                  </div>
-                </div>
-              </div>
+            <h1 style={{ fontFamily: "'Newsreader', serif", color: T.ink }} className="text-3xl font-medium">
+              Account Health Check
+            </h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <Dropdown value={account} options={ACCOUNTS} onChange={setAccount} />
+            <Dropdown value={period} options={PERIODS} onChange={setPeriod} labelKey="label" />
+            <div
+              style={{ borderColor: T.line, color: T.inkMuted }}
+              className="flex items-center gap-1.5 border rounded-sm px-2.5 py-1.5 text-xs"
+            >
+              <inputMethodMeta.icon size={13} />
+              {inputMethodMeta.label}
             </div>
           </div>
-        )}
+        </div>
+
+        {/*  FTIS hero + KPI strip  */}
+        <div
+          style={{ background: T.paperRaised, border: `1px solid ${T.line}` }}
+          className="rounded-sm px-6 py-6 mb-6"
+        >
+          <div className="flex flex-wrap gap-8 items-start">
+            <div style={{ minWidth: 180 }}>
+              <div style={{ color: T.inkMuted }} className="text-[11px] uppercase tracking-wider mb-1">
+                FTIS — Financial Truth Integrity Score
+              </div>
+              <div
+                style={{ fontFamily: "'Newsreader', serif", color: signalFor(CURRENT_KPI.ftis, { good: 95, medium: 85 }) }}
+                className="text-6xl font-medium leading-none"
+              >
+                {CURRENT_KPI.ftis.toFixed(1)}
+              </div>
+              <DoubleRule color={T.ink} />
+              <div style={{ color: T.inkMuted, fontFamily: "'IBM Plex Mono', monospace" }} className="text-[11px] mt-2">
+                RAR ×0.4 + AMER ×0.3 + (100−UVR) ×0.2 + RVI ×0.1
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-8 flex-1 pt-1">
+              <KpiBlock
+                label="RAR"
+                value={fmtPct(CURRENT_KPI.rar)}
+                target="Target ≥ 98%"
+                color={signalFor(CURRENT_KPI.rar, THRESHOLDS.rar)}
+              />
+              <KpiBlock
+                label="UVR"
+                value={fmtPct(CURRENT_KPI.uvr)}
+                target={`${fmtNGN(CURRENT_KPI.unmatched_value)} at risk`}
+                color={signalFor(CURRENT_KPI.uvr, THRESHOLDS.uvr, true)}
+              />
+              <KpiBlock
+                label="AMER"
+                value={fmtPct(CURRENT_KPI.amer)}
+                target="Automation maturity"
+                color={signalFor(CURRENT_KPI.amer, THRESHOLDS.amer)}
+              />
+              <KpiBlock
+                label="RVI"
+                value={fmtPct(CURRENT_KPI.rvi)}
+                target="Target ≥ 85%"
+                color={signalFor(CURRENT_KPI.rvi, THRESHOLDS.rvi)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Trend */}
+        <div style={{ background: T.paperRaised, border: `1px solid ${T.line}` }} className="rounded-sm px-6 py-5 mb-6">
+          <div style={{ color: T.inkMuted }} className="text-[11px] uppercase tracking-wider mb-3">
+            Six-period trend
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={KPI_HISTORY} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+              <CartesianGrid stroke={T.line} strokeDasharray="0" vertical={false} />
+              <XAxis
+                dataKey="period"
+                tick={{ fontFamily: "IBM Plex Mono", fontSize: 11, fill: T.inkMuted }}
+                axisLine={{ stroke: T.lineStrong }}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontFamily: "IBM Plex Mono", fontSize: 11, fill: T.inkMuted }}
+                axisLine={false}
+                tickLine={false}
+                width={36}
+              />
+              <Tooltip
+                contentStyle={{ background: T.paperRaised, border: `1px solid ${T.line}`, fontFamily: "Inter", fontSize: 12 }}
+                labelStyle={{ color: T.ink }}
+              />
+              <Line type="monotone" dataKey="ftis" stroke={T.ink} strokeWidth={2} dot={{ r: 2.5 }} name="FTIS" />
+              <Line type="monotone" dataKey="rar" stroke={T.accent} strokeWidth={1.5} dot={{ r: 2 }} name="RAR" />
+              <Line type="monotone" dataKey="uvr" stroke={T.critical} strokeWidth={1.5} dot={{ r: 2 }} name="UVR" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Exceptions worklist */}
+        <div style={{ background: T.paperRaised, border: `1px solid ${T.line}` }} className="rounded-sm px-6 py-5">
+          <div className="flex items-center justify-between mb-3">
+            <div style={{ color: T.inkMuted }} className="text-[11px] uppercase tracking-wider">
+              Exceptions worklist
+            </div>
+            <div className="flex items-center gap-1.5" style={{ color: openCount > 0 ? T.medium : T.good, fontFamily: "'IBM Plex Mono', monospace" }}>
+              {openCount > 0 ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
+              <span className="text-xs">{openCount} open</span>
+            </div>
+          </div>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${T.lineStrong}` }}>
+                {["Source", "Category", "Variance", "Raised", "SLA due", "Status", ""].map((h) => (
+                  <th
+                    key={h}
+                    style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }}
+                    className={`text-[11px] uppercase tracking-wider font-normal pb-2 ${h === "Variance" ? "text-right pr-4" : "text-left pr-4"}`}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {exceptions.map((exc) => (
+                <ExceptionRow key={exc.id} exc={exc} onResolve={handleResolve} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ color: T.inkMuted }} className="text-[11px] mt-4 flex items-center gap-1.5">
+          <Check size={12} />
+          Figures shown are illustrative — connect to the reconciliation API to replace mock data.
+        </div>
       </div>
     </div>
   );

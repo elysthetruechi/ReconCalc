@@ -6,7 +6,7 @@ import {
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip
 } from "recharts";
-
+import "./ReconciliationCalculator.css";
 /* DESIGN TOKENS
    Ledger-paper system: pale green-tinted paper (real columnar-pad
    colour), ink text, hairline rules, slate-blue "correction ink"
@@ -128,7 +128,7 @@ function TickMark({ color = T.good, size = 14 }) {
 
 function Dropdown({ value, options, onChange, labelKey = "name" }) {
   return (
-    <div className="relative">
+    <div className="recon-dropdown-wrap">
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -138,37 +138,37 @@ function Dropdown({ value, options, onChange, labelKey = "name" }) {
           background: "transparent",
           border: `1px solid ${T.line}`,
         }}
-        className="appearance-none pl-3 pr-8 py-1.5 text-sm rounded-sm cursor-pointer focus:outline-none focus:ring-1"
+        className="recon-dropdown"
       >
         {options.map((o) => (
           <option key={o.id} value={o.id}>{o[labelKey]}</option>
         ))}
       </select>
-      <ChevronDown size={14} style={{ color: T.inkMuted }} className="absolute right-2 top-2 pointer-events-none" />
+      <ChevronDown size={14} className="recon-dropdown-chevron" />
     </div>
   );
 }
 
 function KpiBlock({ label, value, target, formula, color }) {
   return (
-    <div className="flex-1 min-w-[150px]">
-      <div className="flex items-center gap-1.5 mb-1">
+    <div className="recon-kpi-block">
+      <div className="recon-kpi-label-row">
         <span
           style={{ background: color }}
-          className="inline-block w-1.5 h-1.5 rounded-full"
+          className="recon-dot"
         />
-        <span style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }} className="text-[11px] uppercase tracking-wider">
+        <span style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }} className="recon-label">
           {label}
         </span>
       </div>
       <div
         style={{ fontFamily: "'IBM Plex Mono', monospace", color: T.ink, fontVariantNumeric: "tabular-nums" }}
-        className="text-2xl font-medium"
+        className="recon-kpi-value"
       >
         {value}
       </div>
       <DoubleRule color={T.line} />
-      <div style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }} className="text-[11px] mt-1.5">
+      <div style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }} className="recon-kpi-target">
         {target}
       </div>
     </div>
@@ -195,38 +195,38 @@ function ExceptionRow({ exc, onResolve }) {
 
   return (
     <tr style={{ borderBottom: `1px solid ${T.line}` }}>
-      <td className="py-2.5 pr-4 text-sm" style={{ fontFamily: "'Inter', sans-serif", color: T.ink }}>
+      <td style={{ fontFamily: "'Inter', sans-serif", color: T.ink }}>
         {SOURCE_LABEL[exc.source]}
       </td>
-      <td className="py-2.5 pr-4 text-sm" style={{ fontFamily: "'Inter', sans-serif", color: T.ink }}>
+      <td style={{ fontFamily: "'Inter', sans-serif", color: T.ink }}>
         {CATEGORY_LABEL[exc.category]}
       </td>
       <td
-        className="py-2.5 pr-4 text-sm text-right"
+        className="recon-td-variance"
         style={{ fontFamily: "'IBM Plex Mono', monospace", color: exc.variance ? T.critical : T.inkMuted, fontVariantNumeric: "tabular-nums" }}
       >
         {exc.variance ? fmtNGN(exc.variance) : "—"}
       </td>
-      <td className="py-2.5 pr-4 text-sm" style={{ fontFamily: "'IBM Plex Mono', monospace", color: T.inkMuted }}>
+      <td className="recon-td-muted" style={{ fontFamily: "'IBM Plex Mono', monospace", color: T.inkMuted }}>
         {fmtDate(exc.created_at)}
       </td>
-      <td className="py-2.5 pr-4 text-sm" style={{ fontFamily: "'IBM Plex Mono', monospace", color: T.inkMuted }}>
+      <td className="recon-td-muted" style={{ fontFamily: "'IBM Plex Mono', monospace", color: T.inkMuted }}>
         {fmtDate(exc.sla_deadline)}
       </td>
-      <td className="py-2.5 pr-4">
-        <div className="flex items-center gap-1.5">
+      <td>
+        <div className="recon-status-cell">
           {isResolved && <TickMark color={statusColor} />}
-          <span style={{ fontFamily: "'Inter', sans-serif", color: statusColor }} className="text-xs font-medium">
+          <span style={{ fontFamily: "'Inter', sans-serif", color: statusColor }} className="recon-status-label">
             {statusLabel}
           </span>
         </div>
       </td>
-      <td className="py-2.5 text-right">
+      <td className="recon-align-right">
         {!isResolved && (
           <button
             onClick={() => onResolve(exc.id)}
             style={{ fontFamily: "'Inter', sans-serif", color: T.accent, border: `1px solid ${T.accent}` }}
-            className="text-xs px-2.5 py-1 rounded-sm hover:opacity-75 transition-opacity"
+            className="recon-resolve-btn"
           >
             Mark resolved
           </button>
@@ -260,26 +260,26 @@ export default function ReconciliationDashboard() {
   }[inputMethod];
 
   return (
-    <div style={{ background: T.paper, minHeight: "100%", fontFamily: "'Inter', sans-serif" }} className="w-full">
+    <div style={{ background: T.paper, minHeight: "100%", fontFamily: "'Inter', sans-serif" }} className="recon-dash">
       <style>{FONT_IMPORT}</style>
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="recon-container">
         {/* Masthead*/}
-        <div className="flex items-end justify-between mb-6 pb-4" style={{ borderBottom: `1px solid ${T.lineStrong}` }}>
+        <div className="recon-masthead" style={{ borderBottom: `1px solid ${T.lineStrong}` }}>
           <div>
-            <div style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }} className="text-[11px] uppercase tracking-[0.15em] mb-1">
+            <div style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }} className="recon-eyebrow">
               Reconciliation Ledger
             </div>
-            <h1 style={{ fontFamily: "'Newsreader', serif", color: T.ink }} className="text-3xl font-medium">
+            <h1 style={{ fontFamily: "'Newsreader', serif", color: T.ink }} className="recon-title">
               Account Health Check
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="recon-controls">
             <Dropdown value={account} options={ACCOUNTS} onChange={setAccount} />
             <Dropdown value={period} options={PERIODS} onChange={setPeriod} labelKey="label" />
             <div
               style={{ borderColor: T.line, color: T.inkMuted }}
-              className="flex items-center gap-1.5 border rounded-sm px-2.5 py-1.5 text-xs"
+              className="recon-chip"
             >
               <inputMethodMeta.icon size={13} />
               {inputMethodMeta.label}
@@ -290,26 +290,26 @@ export default function ReconciliationDashboard() {
         {/*  FTIS hero + KPI strip  */}
         <div
           style={{ background: T.paperRaised, border: `1px solid ${T.line}` }}
-          className="rounded-sm px-6 py-6 mb-6"
+          className="recon-card"
         >
-          <div className="flex flex-wrap gap-8 items-start">
+          <div className="recon-hero-row">
             <div style={{ minWidth: 180 }}>
-              <div style={{ color: T.inkMuted }} className="text-[11px] uppercase tracking-wider mb-1">
+              <div style={{ color: T.inkMuted }} className="recon-label">
                 FTIS — Financial Truth Integrity Score
               </div>
               <div
                 style={{ fontFamily: "'Newsreader', serif", color: signalFor(CURRENT_KPI.ftis, { good: 95, medium: 85 }) }}
-                className="text-6xl font-medium leading-none"
+                className="recon-hero-value"
               >
                 {CURRENT_KPI.ftis.toFixed(1)}
               </div>
               <DoubleRule color={T.ink} />
-              <div style={{ color: T.inkMuted, fontFamily: "'IBM Plex Mono', monospace" }} className="text-[11px] mt-2">
+              <div style={{ color: T.inkMuted, fontFamily: "'IBM Plex Mono', monospace" }} className="recon-hero-formula">
                 RAR ×0.4 + AMER ×0.3 + (100−UVR) ×0.2 + RVI ×0.1
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-8 flex-1 pt-1">
+            <div className="recon-kpi-row">
               <KpiBlock
                 label="RAR"
                 value={fmtPct(CURRENT_KPI.rar)}
@@ -339,8 +339,8 @@ export default function ReconciliationDashboard() {
         </div>
 
         {/* Trend */}
-        <div style={{ background: T.paperRaised, border: `1px solid ${T.line}` }} className="rounded-sm px-6 py-5 mb-6">
-          <div style={{ color: T.inkMuted }} className="text-[11px] uppercase tracking-wider mb-3">
+        <div style={{ background: T.paperRaised, border: `1px solid ${T.line}` }} className="recon-card">
+          <div style={{ color: T.inkMuted }} className="recon-chart-title">
             Six-period trend
           </div>
           <ResponsiveContainer width="100%" height={200}>
@@ -370,24 +370,24 @@ export default function ReconciliationDashboard() {
         </div>
 
         {/* Exceptions worklist */}
-        <div style={{ background: T.paperRaised, border: `1px solid ${T.line}` }} className="rounded-sm px-6 py-5">
-          <div className="flex items-center justify-between mb-3">
-            <div style={{ color: T.inkMuted }} className="text-[11px] uppercase tracking-wider">
+        <div style={{ background: T.paperRaised, border: `1px solid ${T.line}` }} className="recon-card">
+          <div className="recon-table-header-row">
+            <div style={{ color: T.inkMuted }} className="recon-label">
               Exceptions worklist
             </div>
-            <div className="flex items-center gap-1.5" style={{ color: openCount > 0 ? T.medium : T.good, fontFamily: "'IBM Plex Mono', monospace" }}>
+            <div className="recon-open-count" style={{ color: openCount > 0 ? T.medium : T.good, fontFamily: "'IBM Plex Mono', monospace" }}>
               {openCount > 0 ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
-              <span className="text-xs">{openCount} open</span>
+              <span>{openCount} open</span>
             </div>
           </div>
-          <table className="w-full border-collapse">
+          <table className="recon-table">
             <thead>
               <tr style={{ borderBottom: `1px solid ${T.lineStrong}` }}>
                 {["Source", "Category", "Variance", "Raised", "SLA due", "Status", ""].map((h) => (
                   <th
                     key={h}
                     style={{ color: T.inkMuted, fontFamily: "'Inter', sans-serif" }}
-                    className={`text-[11px] uppercase tracking-wider font-normal pb-2 ${h === "Variance" ? "text-right pr-4" : "text-left pr-4"}`}
+                    className={h === "Variance" ? "recon-align-right" : ""}
                   >
                     {h}
                   </th>
@@ -402,7 +402,7 @@ export default function ReconciliationDashboard() {
           </table>
         </div>
 
-        <div style={{ color: T.inkMuted }} className="text-[11px] mt-4 flex items-center gap-1.5">
+        <div style={{ color: T.inkMuted }} className="recon-footnote">
           <Check size={12} />
           Figures shown are illustrative — connect to the reconciliation API to replace mock data.
         </div>

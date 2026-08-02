@@ -7,6 +7,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip
 } from "recharts";
 import "./ReconciliationCalculator.css";
+
 /* DESIGN TOKENS
    Ledger-paper system: pale green-tinted paper (real columnar-pad
    colour), ink text, hairline rules, slate-blue "correction ink"

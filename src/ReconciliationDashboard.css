@@ -1,0 +1,342 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --paper: #EDF1EA;
+  --paper-raised: #F5F7F3;
+  --ink: #1C2321;
+  --ink-muted: #55645A;
+  --line: #C7D2C2;
+  --line-strong: #9FB09A;
+  --accent: #2C4A6E;
+  --good: #1F6F4C;
+  --medium: #A9781F;
+  --critical: #9B3B2B;
+
+  --font-display: 'Newsreader', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* ---------- Page shell ---------- */
+.recon-dash {
+  background: var(--paper);
+  min-height: 100%;
+  width: 100%;
+  font-family: var(--font-body);
+  color: var(--ink);
+}
+
+.recon-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* ---------- Masthead ---------- */
+.recon-masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.recon-eyebrow {
+  color: var(--ink-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 4px;
+}
+
+.recon-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 30px;
+  color: var(--ink);
+  margin: 0;
+}
+
+.recon-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Dropdown ---------- */
+.recon-dropdown-wrap {
+  position: relative;
+}
+
+.recon-dropdown {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  appearance: none;
+  padding: 6px 28px 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.recon-dropdown:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.recon-dropdown-chevron {
+  position: absolute;
+  right: 8px;
+  top: 9px;
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+
+/* ---------- Input method chip ---------- */
+.recon-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* ---------- Cards ---------- */
+.recon-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+/* ---------- Double rule (signature element) ---------- */
+.recon-double-rule {
+  height: 4px;
+  margin-top: 6px;
+  border-bottom: 2px solid currentColor;
+  box-shadow: 0 4px 0 -1px currentColor;
+}
+
+/* ---------- FTIS hero ---------- */
+.recon-hero-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+.recon-hero-block {
+  min-width: 180px;
+}
+
+.recon-label {
+  color: var(--ink-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.recon-hero-value {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 56px;
+  line-height: 1;
+}
+
+.recon-hero-formula {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-top: 8px;
+}
+
+/* ---------- KPI blocks ---------- */
+.recon-kpi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  flex: 1;
+  padding-top: 4px;
+}
+
+.recon-kpi-block {
+  flex: 1;
+  min-width: 150px;
+}
+
+.recon-kpi-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.recon-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.recon-kpi-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.recon-kpi-target {
+  color: var(--ink-muted);
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+/* ---------- Trend chart card ---------- */
+.recon-chart-title {
+  color: var(--ink-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+/* ---------- Exceptions table ---------- */
+.recon-table-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.recon-open-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.recon-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.recon-table thead tr {
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.recon-table th {
+  color: var(--ink-muted);
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 8px;
+  text-align: left;
+  padding-right: 16px;
+}
+
+.recon-table th.recon-align-right {
+  text-align: right;
+}
+
+.recon-table tbody tr {
+  border-bottom: 1px solid var(--line);
+}
+
+.recon-table td {
+  padding: 10px 16px 10px 0;
+  font-size: 14px;
+}
+
+.recon-td-muted {
+  font-family: var(--font-mono);
+  color: var(--ink-muted);
+}
+
+.recon-td-variance {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.recon-status-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.recon-status-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.recon-resolve-btn {
+  font-family: var(--font-body);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  background: transparent;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.recon-resolve-btn:hover {
+  opacity: 0.7;
+}
+
+.recon-table td.recon-align-right {
+  text-align: right;
+}
+
+/* ---------- Footer note ---------- */
+.recon-footnote {
+  color: var(--ink-muted);
+  font-size: 11px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---------- Loading spinner ---------- */
+.recon-spin {
+  animation: recon-spin 0.9s linear infinite;
+}
+
+@keyframes recon-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 640px) {
+  .recon-hero-value {
+    font-size: 40px;
+  }
+  .recon-kpi-row {
+    gap: 20px;
+  }
+  .recon-table {
+    font-size: 12px;
+  }
+}

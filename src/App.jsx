@@ -4,10 +4,10 @@ import ReconciliationDashboard from './ReconciliationDashboard';
 
 function App() {
   return (
-    <>
-      <ReconciliationCalculator />
-      <ReconciliationDashboard />
-    </>
+   <>
+    <ReconciliationCalculator />
+    <ReconciliationDashboard />
+   </>
   );
 }
 
